@@ -432,8 +432,9 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
 
   // Toggle exercise as Done with a single tap
   Future<void> _toggleExerciseDone(PlanExercise ex) async {
-    final isDone = _completedExerciseNames.contains(ex.name);
     final workouts = ref.read(workoutLogsProvider);
+    final matching = workouts.where((w) => w.exerciseName == ex.name).toList();
+    final isDone = _completedExerciseNames.contains(ex.name) || matching.isNotEmpty;
     final profile = ref.read(profileProvider);
 
     if (isDone) {
@@ -441,10 +442,9 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       setState(() {
         _completedExerciseNames.remove(ex.name);
       });
-      // Find matching log if exists and delete
-      final matching = workouts.where((w) => w.exerciseName == ex.name).toList();
-      if (matching.isNotEmpty) {
-        await ref.read(workoutLogsProvider.notifier).deleteWorkoutLog(matching.first.id);
+      // Delete all matching logs
+      for (final log in matching) {
+        await ref.read(workoutLogsProvider.notifier).deleteWorkoutLog(log.id);
       }
       if (mounted) {
         MallowToast.show(context, 'Unmarked ${ex.name}');
@@ -490,26 +490,24 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Bar
+              // Clean Top Bar (No redundant back arrow or 'See Today' button when in bottom nav tab)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      MallowCircleButton(
-                        size: 38,
-                        onTap: () {
-                          try {
-                            if (Navigator.canPop(context)) {
+                      if (Navigator.canPop(context)) ...[
+                        MallowCircleButton(
+                          size: 38,
+                          onTap: () {
+                            try {
                               context.pop();
-                            } else {
-                              context.go('/today');
-                            }
-                          } catch (_) {}
-                        },
-                        child: const Icon(Icons.arrow_back, size: 20, color: MallowColors.charcoal),
-                      ),
-                      const SizedBox(width: 10),
+                            } catch (_) {}
+                          },
+                          child: const Icon(Icons.arrow_back, size: 20, color: MallowColors.charcoal),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
                       MallowAvatar(
                         size: 38,
                         onTap: () {
@@ -520,45 +518,38 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _showTrainingGuideModal,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: MallowColors.borderSubtle),
+                  // Training Guide Button
+                  GestureDetector(
+                    onTap: _showTrainingGuideModal,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: MallowColors.borderSubtle),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.info_outline, size: 16, color: MallowColors.charcoal),
-                              SizedBox(width: 4),
-                              Text(
-                                'Guide',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: MallowColors.charcoal,
-                                ),
-                              ),
-                            ],
+                        ],
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: MallowColors.charcoal),
+                          SizedBox(width: 5),
+                          Text(
+                            'Guide',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: MallowColors.charcoal,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      MallowPillButton(
-                        label: 'See Today',
-                        height: 38,
-                        isPrimary: true,
-                        onTap: () {
-                          try {
-                            context.go('/today');
-                          } catch (_) {}
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
@@ -648,9 +639,11 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           final isSelected = _selectedWeekday == plan.weekday;
           final isToday = todayWeekday == plan.weekday;
 
-          return GestureDetector(
-            onTap: () => setState(() => _selectedWeekday = plan.weekday),
-            child: AnimatedContainer(
+          return MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedWeekday = plan.weekday),
+              child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               width: 52,
               decoration: BoxDecoration(
@@ -709,8 +702,9 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
                 ],
               ),
             ),
-          );
-        },
+          ),
+        );
+      },
       ),
     );
   }
@@ -821,130 +815,143 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
         final ex = plan.exercises[index];
         final isDone = completedSet.contains(ex.name);
 
-        return GestureDetector(
-          key: Key('exercise_card_${ex.id}'),
-          onTap: () => _toggleExerciseDone(ex),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDone ? const Color(0xFFF2F9EE) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDone ? MallowColors.oliveGreen : MallowColors.borderSubtle,
-                width: isDone ? 1.8 : 1.2,
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            key: Key('exercise_card_${ex.id}'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _toggleExerciseDone(ex),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDone ? const Color(0xFFF2F9EE) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDone ? MallowColors.oliveGreen : MallowColors.borderSubtle,
+                  width: isDone ? 1.8 : 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                // Clean Cropped Artwork
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    width: 66,
-                    height: 66,
-                    color: MallowColors.cardCream,
-                    child: Image.asset(
-                      ex.imagePath,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Center(
-                        child: Icon(Icons.fitness_center, size: 28, color: MallowColors.charcoal),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-
-                // Name and Prescribed Sets x Reps
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ex.name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDone ? Colors.grey.shade700 : MallowColors.charcoal,
-                          decoration: isDone ? TextDecoration.lineThrough : null,
+              child: Row(
+                children: [
+                  // Clean Cropped Artwork
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      width: 66,
+                      height: 66,
+                      color: MallowColors.cardCream,
+                      child: Image.asset(
+                        ex.imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Center(
+                          child: Icon(Icons.fitness_center, size: 28, color: MallowColors.charcoal),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          // Sets × Reps Pill
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDone
-                                  ? MallowColors.oliveGreenLight
-                                  : MallowColors.hotPinkLight,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              ex.setsReps,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Name and Prescribed Sets x Reps
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ex.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isDone ? Colors.grey.shade600 : MallowColors.charcoal,
+                            decoration: isDone ? TextDecoration.lineThrough : null,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          children: [
+                            // Sets × Reps Pill
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
                                 color: isDone
-                                    ? MallowColors.oliveGreen
-                                    : MallowColors.charcoal,
+                                    ? MallowColors.oliveGreenLight
+                                    : MallowColors.hotPinkLight,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                ex.setsReps,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDone
+                                      ? MallowColors.oliveGreen
+                                      : MallowColors.charcoal,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 6),
+                            const SizedBox(width: 6),
 
-                          // Muscle Tag
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF5F3EF),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              ex.muscleGroup,
-                              style: MallowTypography.bodySmall(
-                                color: MallowColors.textSubtle,
+                            // Muscle Tag
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F3EF),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                ex.muscleGroup,
+                                style: MallowTypography.bodySmall(
+                                  color: MallowColors.textSubtle,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Clear, Interactive Checkmark Action Button
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: isDone ? MallowColors.oliveGreen : const Color(0xFFFBF9F6),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDone ? MallowColors.oliveGreen : const Color(0xFFD6D0C7),
+                        width: 1.8,
                       ),
-                    ],
-                  ),
-                ),
-
-                // Satisfying Done Checkmark Button
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: isDone ? MallowColors.oliveGreen : Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDone ? MallowColors.oliveGreen : MallowColors.borderSubtle,
-                      width: 1.8,
+                      boxShadow: isDone
+                          ? [
+                              BoxShadow(
+                                color: MallowColors.oliveGreen.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.check_rounded,
+                        size: 20,
+                        color: isDone ? Colors.white : const Color(0xFFD6D0C7),
+                      ),
                     ),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.check,
-                      size: 20,
-                      color: isDone ? Colors.white : Colors.transparent,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
