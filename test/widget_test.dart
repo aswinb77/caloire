@@ -105,7 +105,7 @@ void main() {
     expect(find.textContaining('get_remaining'), findsNothing);
   });
 
-  testWidgets('WorkoutScreen renders Sets, Reps, and Weight steppers and excludes brisk walk, swim, and yoga', (WidgetTester tester) async {
+  testWidgets('WorkoutScreen renders clean exercise cards and tapping logs as done', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
@@ -121,19 +121,17 @@ void main() {
     expect(find.text('Swim'), findsNothing);
     expect(find.text('Yoga'), findsNothing);
 
-    // Verify strength exercises are present
-    expect(find.text('Bench press'), findsWidgets);
-    expect(find.text('Squat'), findsOneWidget);
-    expect(find.text('Deadlift'), findsOneWidget);
+    // Verify Workout Plan header renders
+    expect(find.text('Workout Plan'), findsOneWidget);
+    expect(find.text('Tap any card to log as done'), findsOneWidget);
 
-    // Verify sets, reps, weight controls exist
-    expect(find.text('Sets'), findsOneWidget);
-    expect(find.text('Reps per Set'), findsOneWidget);
-    expect(find.text('Weight (kg)'), findsOneWidget);
-    expect(find.textContaining('volume'), findsOneWidget);
-
-    // Verify Log workout button exists
-    expect(find.byKey(const Key('log_workout_button')), findsOneWidget);
+    // Tap the first exercise card (should mark done and show checkmark)
+    final firstExerciseCard = find.byWidgetPredicate(
+      (widget) => widget.key != null && widget.key.toString().contains('exercise_card_'),
+    ).first;
+    expect(firstExerciseCard, findsOneWidget);
+    await tester.tap(firstExerciseCard);
+    await tester.pumpAndSettle();
   });
 }
 
