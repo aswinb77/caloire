@@ -6,29 +6,56 @@ import '../../core/theme/mallow_widgets.dart';
 import '../../core/theme/mallow_toast.dart';
 import '../../core/formulas/formulas.dart';
 import '../../core/providers/providers.dart';
+import '../../core/models/models.dart';
 
-enum ExerciseType { strength, cardio }
-
-class ExerciseItem {
+// Model for an exercise in the 5-day split plan
+class PlanExercise {
   final String name;
-  final double met;
-  final ExerciseType type;
+  final String setsReps;
   final String muscleGroup;
-  final double defaultWeightKg;
+  final String imagePath;
   final int defaultSets;
   final int defaultReps;
+  final double defaultWeightKg;
+  final double met;
+  final String tip;
 
-  const ExerciseItem({
+  const PlanExercise({
     required this.name,
-    required this.met,
-    this.type = ExerciseType.strength,
-    this.muscleGroup = 'Full Body',
-    this.defaultWeightKg = 50.0,
-    this.defaultSets = 4,
-    this.defaultReps = 10,
+    required this.setsReps,
+    required this.muscleGroup,
+    required this.imagePath,
+    required this.defaultSets,
+    required this.defaultReps,
+    required this.defaultWeightKg,
+    this.met = 5.5,
+    required this.tip,
   });
+}
 
-  bool get isStrength => type == ExerciseType.strength;
+// Model for each day of the 5-day split
+class WorkoutDayPlan {
+  final int weekday; // 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat, 7: Sun
+  final String dayName;
+  final String shortDay;
+  final String title;
+  final String subtitle;
+  final String targetMuscles;
+  final bool isRestDay;
+  final String? restAdvice;
+  final List<PlanExercise> exercises;
+
+  const WorkoutDayPlan({
+    required this.weekday,
+    required this.dayName,
+    required this.shortDay,
+    required this.title,
+    required this.subtitle,
+    required this.targetMuscles,
+    this.isRestDay = false,
+    this.restAdvice,
+    this.exercises = const [],
+  });
 }
 
 class WorkoutScreen extends ConsumerStatefulWidget {
@@ -39,150 +66,526 @@ class WorkoutScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
-  final List<ExerciseItem> _exercises = const [
-    ExerciseItem(
-      name: 'Bench press',
-      met: 5.0,
-      type: ExerciseType.strength,
-      muscleGroup: 'Chest',
-      defaultWeightKg: 60.0,
-      defaultSets: 4,
-      defaultReps: 10,
+  late int _selectedWeekday;
+  late PlanExercise _selectedExercise;
+
+  // Active strength workout parameters
+  int _sets = 3;
+  int _reps = 10;
+  double _weightKg = 50.0;
+
+  // 5-DAY GYM WORKOUT PLAN DATA
+  final List<WorkoutDayPlan> _weeklyPlans = const [
+    // 1. MONDAY: UPPER BODY
+    WorkoutDayPlan(
+      weekday: 1,
+      dayName: 'Monday',
+      shortDay: 'Mon',
+      title: 'Upper Body',
+      subtitle: 'Broader Shoulders, Fuller Chest & Wider Back',
+      targetMuscles: 'Chest • Upper Back • Shoulders • Arms',
+      exercises: [
+        PlanExercise(
+          name: 'Incline Dumbbell Press',
+          setsReps: '3 × 6–10',
+          muscleGroup: 'Upper Chest',
+          imagePath: 'assets/workouts/incline_dumbbell_press_upper.png',
+          defaultSets: 3,
+          defaultReps: 8,
+          defaultWeightKg: 24.0,
+          met: 5.5,
+          tip: '30° incline bench, 2–3m rest',
+        ),
+        PlanExercise(
+          name: 'Lat Pulldown or Pull-Ups',
+          setsReps: '3 × 6–10',
+          muscleGroup: 'Lats & V-Taper Back',
+          imagePath: 'assets/workouts/lat_pulldown.png',
+          defaultSets: 3,
+          defaultReps: 8,
+          defaultWeightKg: 55.0,
+          met: 6.0,
+          tip: 'Full stretch at top, pull to upper chest',
+        ),
+        PlanExercise(
+          name: 'Bench press',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Mid/Lower Chest',
+          imagePath: 'assets/workouts/bench_press.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 60.0,
+          met: 5.5,
+          tip: 'Controlled descent, plant your feet firmly',
+        ),
+        PlanExercise(
+          name: 'Chest-Supported Row',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Upper Back & Rhomboids',
+          imagePath: 'assets/workouts/chest_supported_row.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 40.0,
+          met: 5.0,
+          tip: 'Squeeze shoulder blades together at peak',
+        ),
+        PlanExercise(
+          name: 'Dumbbell Lateral Raises',
+          setsReps: '3 × 12–20',
+          muscleGroup: 'Side Delts',
+          imagePath: 'assets/workouts/dumbbell_lateral_raise.png',
+          defaultSets: 3,
+          defaultReps: 15,
+          defaultWeightKg: 10.0,
+          met: 4.5,
+          tip: 'Strict form, lead slightly with elbows',
+        ),
+        PlanExercise(
+          name: 'Cable Triceps Pushdown',
+          setsReps: '2 × 10–15',
+          muscleGroup: 'Triceps Lateral & Medial Head',
+          imagePath: 'assets/workouts/cable_triceps_pushdown.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 25.0,
+          met: 4.5,
+          tip: 'Pin elbows to ribs, lock out at bottom',
+        ),
+        PlanExercise(
+          name: 'Dumbbell Biceps Curl',
+          setsReps: '2 × 10–15',
+          muscleGroup: 'Biceps Brachii',
+          imagePath: 'assets/workouts/dumbbell_curl.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 14.0,
+          met: 4.0,
+          tip: 'Supinate wrist as you curl upward',
+        ),
+      ],
     ),
-    ExerciseItem(
-      name: 'Squat',
-      met: 6.0,
-      type: ExerciseType.strength,
-      muscleGroup: 'Legs & Glutes',
-      defaultWeightKg: 70.0,
-      defaultSets: 4,
-      defaultReps: 10,
+
+    // 2. TUESDAY: LOWER BODY A
+    WorkoutDayPlan(
+      weekday: 2,
+      dayName: 'Tuesday',
+      shortDay: 'Tue',
+      title: 'Lower Body A',
+      subtitle: 'Quad Strength, Hamstrings & Calves',
+      targetMuscles: 'Quads • Glutes • Hamstrings • Calves • Core',
+      exercises: [
+        PlanExercise(
+          name: 'Squat',
+          setsReps: '3 × 6–10',
+          muscleGroup: 'Quads & Glutes',
+          imagePath: 'assets/workouts/leg_press.png',
+          defaultSets: 3,
+          defaultReps: 8,
+          defaultWeightKg: 80.0,
+          met: 6.0,
+          tip: 'Back Squat or Leg Press, 2–3m rest',
+        ),
+        PlanExercise(
+          name: 'Deadlift',
+          setsReps: '3 × 8–10',
+          muscleGroup: 'Hamstrings & Posterior Chain',
+          imagePath: 'assets/workouts/deadlift.png',
+          defaultSets: 3,
+          defaultReps: 8,
+          defaultWeightKg: 85.0,
+          met: 6.5,
+          tip: 'Romanian Deadlift, hinge at hips',
+        ),
+        PlanExercise(
+          name: 'Leg Extension',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Quadriceps Isolation',
+          imagePath: 'assets/workouts/leg_extension.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 45.0,
+          met: 5.0,
+          tip: 'Pause for 1 sec at top contraction',
+        ),
+        PlanExercise(
+          name: 'Seated Leg Curl',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Hamstrings',
+          imagePath: 'assets/workouts/seated_leg_curl.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 40.0,
+          met: 5.0,
+          tip: 'Controlled eccentric return, feel the burn',
+        ),
+        PlanExercise(
+          name: 'Standing Calf Raise',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Gastrocnemius Calves',
+          imagePath: 'assets/workouts/standing_calf_raise.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 50.0,
+          met: 4.5,
+          tip: 'Full stretch at bottom, press onto balls of feet',
+        ),
+        PlanExercise(
+          name: 'Cable Crunch',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Rectus Abdominis',
+          imagePath: 'assets/workouts/cable_crunch.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 30.0,
+          met: 4.5,
+          tip: 'Flex spine downwards, do not pull with hips',
+        ),
+      ],
     ),
-    ExerciseItem(
-      name: 'Deadlift',
-      met: 6.5,
-      type: ExerciseType.strength,
-      muscleGroup: 'Back & Posterior Chain',
-      defaultWeightKg: 80.0,
-      defaultSets: 4,
-      defaultReps: 8,
+
+    // 3. WEDNESDAY: PUSH
+    WorkoutDayPlan(
+      weekday: 3,
+      dayName: 'Wednesday',
+      shortDay: 'Wed',
+      title: 'Push',
+      subtitle: 'Chest Hypertrophy, Shoulders & Triceps',
+      targetMuscles: 'Chest • Shoulders • Triceps',
+      exercises: [
+        PlanExercise(
+          name: 'Incline Dumbbell Press',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Upper Chest',
+          imagePath: 'assets/workouts/incline_dumbbell_press.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 22.0,
+          met: 5.5,
+          tip: 'Incline Machine or DB press, 2–3m rest',
+        ),
+        PlanExercise(
+          name: 'Flat Dumbbell Press',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Overall Chest',
+          imagePath: 'assets/workouts/flat_dumbbell_press.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 26.0,
+          met: 5.5,
+          tip: 'Slight arch in back, drive feet into ground',
+        ),
+        PlanExercise(
+          name: 'Seated Shoulder Press',
+          setsReps: '2 × 8–12',
+          muscleGroup: 'Anterior & Lateral Delts',
+          imagePath: 'assets/workouts/seated_shoulder_press.png',
+          defaultSets: 2,
+          defaultReps: 10,
+          defaultWeightKg: 20.0,
+          met: 5.0,
+          tip: 'Press straight overhead without flaring elbows',
+        ),
+        PlanExercise(
+          name: 'Cable Lateral Raises',
+          setsReps: '3 × 12–20',
+          muscleGroup: 'Side Delts Width',
+          imagePath: 'assets/workouts/cable_lateral_raise.png',
+          defaultSets: 3,
+          defaultReps: 15,
+          defaultWeightKg: 8.0,
+          met: 4.5,
+          tip: 'Continuous tension from bottom to shoulder height',
+        ),
+        PlanExercise(
+          name: 'Pec Deck / Cable Fly',
+          setsReps: '2 × 12–15',
+          muscleGroup: 'Inner/Mid Chest Isolation',
+          imagePath: 'assets/workouts/pec_deck_fly.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 35.0,
+          met: 4.5,
+          tip: 'Think of hugging a big barrel, chest out',
+        ),
+        PlanExercise(
+          name: 'Overhead Cable Triceps Extension',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Triceps Long Head',
+          imagePath: 'assets/workouts/overhead_triceps_extension.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 22.0,
+          met: 4.5,
+          tip: 'Get a deep stretch behind neck, flare elbows slightly',
+        ),
+      ],
     ),
-    ExerciseItem(
-      name: 'Overhead press',
-      met: 5.0,
-      type: ExerciseType.strength,
-      muscleGroup: 'Shoulders',
-      defaultWeightKg: 40.0,
-      defaultSets: 3,
-      defaultReps: 10,
+
+    // 4. THURSDAY: REST
+    WorkoutDayPlan(
+      weekday: 4,
+      dayName: 'Thursday',
+      shortDay: 'Thu',
+      title: 'Rest & Recovery',
+      subtitle: 'Light Walking, Mobility & Sleep',
+      targetMuscles: 'Active Recovery • CNS Rebuild',
+      isRestDay: true,
+      restAdvice:
+          '• Light walking (20–30 mins)\n• Optional mobility & foam rolling\n• Prioritize 7–9 hours sleep & hydration',
     ),
-    ExerciseItem(
-      name: 'Barbell row',
-      met: 5.5,
-      type: ExerciseType.strength,
-      muscleGroup: 'Upper Back & Lats',
-      defaultWeightKg: 50.0,
-      defaultSets: 4,
-      defaultReps: 10,
+
+    // 5. FRIDAY: PULL
+    WorkoutDayPlan(
+      weekday: 5,
+      dayName: 'Friday',
+      shortDay: 'Fri',
+      title: 'Pull',
+      subtitle: 'V-Taper Back, Rear Delts & Biceps',
+      targetMuscles: 'Lats • Rhomboids • Rear Delts • Biceps',
+      exercises: [
+        PlanExercise(
+          name: 'Pull-Ups or Lat Pulldown',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Lats Width',
+          imagePath: 'assets/workouts/lat_pulldown.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 55.0,
+          met: 6.0,
+          tip: 'Pull elbows down toward back pockets',
+        ),
+        PlanExercise(
+          name: 'Seated Cable Row',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Mid Back Thickness',
+          imagePath: 'assets/workouts/cable_row.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 50.0,
+          met: 5.5,
+          tip: 'Chest tall, squeeze shoulder blades',
+        ),
+        PlanExercise(
+          name: 'One-Arm Dumbbell Row',
+          setsReps: '2 × 10–12 per side',
+          muscleGroup: 'Unilateral Lats & Back',
+          imagePath: 'assets/workouts/one_arm_dumbbell_row.png',
+          defaultSets: 2,
+          defaultReps: 10,
+          defaultWeightKg: 24.0,
+          met: 5.0,
+          tip: 'Pull towards hip, avoid twisting torso',
+        ),
+        PlanExercise(
+          name: 'Reverse Pec Deck',
+          setsReps: '3 × 12–20',
+          muscleGroup: 'Rear Delts & Upper Traps',
+          imagePath: 'assets/workouts/reverse_pec_deck.png',
+          defaultSets: 3,
+          defaultReps: 15,
+          defaultWeightKg: 30.0,
+          met: 4.5,
+          tip: 'Knuckles pointing forward, lead with back of arms',
+        ),
+        PlanExercise(
+          name: 'Straight-Arm Cable Pulldown',
+          setsReps: '2 × 12–15',
+          muscleGroup: 'Lats Isolation',
+          imagePath: 'assets/workouts/straight_arm_pulldown.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 25.0,
+          met: 4.5,
+          tip: 'Slight forward lean, keep arms almost straight',
+        ),
+        PlanExercise(
+          name: 'EZ-Bar Curl',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Biceps Peak',
+          imagePath: 'assets/workouts/ez_bar_curl.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 25.0,
+          met: 4.5,
+          tip: 'Comfortable wrist angle on cambered bar',
+        ),
+        PlanExercise(
+          name: 'Incline Dumbbell Curl',
+          setsReps: '2 × 10–15',
+          muscleGroup: 'Long Head Biceps',
+          imagePath: 'assets/workouts/incline_dumbbell_curl.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 12.0,
+          met: 4.0,
+          tip: 'Great stretch at the bottom of the movement',
+        ),
+      ],
     ),
-    ExerciseItem(
-      name: 'Pull-ups',
-      met: 6.0,
-      type: ExerciseType.strength,
-      muscleGroup: 'Lats & Biceps',
-      defaultWeightKg: 0.0,
-      defaultSets: 3,
-      defaultReps: 8,
+
+    // 6. SATURDAY: LOWER BODY B + ARMS & SHOULDERS
+    WorkoutDayPlan(
+      weekday: 6,
+      dayName: 'Saturday',
+      shortDay: 'Sat',
+      title: 'Lower Body B + Arms & Shoulders',
+      subtitle: 'Leg Hypertrophy & Direct Arm/Delt Work',
+      targetMuscles: 'Legs • Shoulders • Arms',
+      exercises: [
+        PlanExercise(
+          name: 'Hack Squat or Leg Press',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Quad Hypertrophy',
+          imagePath: 'assets/workouts/leg_press.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 110.0,
+          met: 5.5,
+          tip: 'Deep controlled knee flexion, smooth drive',
+        ),
+        PlanExercise(
+          name: 'Hip Thrust',
+          setsReps: '3 × 8–12',
+          muscleGroup: 'Glutes & Hamstrings',
+          imagePath: 'assets/workouts/deadlift.png',
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultWeightKg: 70.0,
+          met: 5.5,
+          tip: 'Drive through heels, squeeze glutes at the top',
+        ),
+        PlanExercise(
+          name: 'Lying Leg Curl',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Hamstrings',
+          imagePath: 'assets/workouts/seated_leg_curl.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 35.0,
+          met: 5.0,
+          tip: 'Keep hips pressed into bench, do not heave',
+        ),
+        PlanExercise(
+          name: 'Bulgarian Split Squat',
+          setsReps: '2 × 8–12 per leg',
+          muscleGroup: 'Unilateral Quads & Glutes',
+          imagePath: 'assets/workouts/leg_extension.png',
+          defaultSets: 2,
+          defaultReps: 10,
+          defaultWeightKg: 16.0,
+          met: 5.5,
+          tip: 'Focus on front leg balance and depth',
+        ),
+        PlanExercise(
+          name: 'Seated Calf Raise',
+          setsReps: '3 × 12–20',
+          muscleGroup: 'Soleus Calves',
+          imagePath: 'assets/workouts/standing_calf_raise.png',
+          defaultSets: 3,
+          defaultReps: 15,
+          defaultWeightKg: 40.0,
+          met: 4.5,
+          tip: 'Pause at bottom for full tendon stretch',
+        ),
+        PlanExercise(
+          name: 'Hanging Knee Raise',
+          setsReps: '3 × 10–15',
+          muscleGroup: 'Lower Abs',
+          imagePath: 'assets/workouts/cable_crunch.png',
+          defaultSets: 3,
+          defaultReps: 12,
+          defaultWeightKg: 0.0,
+          met: 4.5,
+          tip: 'Curl pelvis up towards ribs without swinging',
+        ),
+        PlanExercise(
+          name: 'Dumbbell Lateral Raise',
+          setsReps: '2 × 15–20',
+          muscleGroup: 'Side Delts',
+          imagePath: 'assets/workouts/dumbbell_lateral_raise.png',
+          defaultSets: 2,
+          defaultReps: 15,
+          defaultWeightKg: 10.0,
+          met: 4.5,
+          tip: 'High rep burn to stimulate shoulder caps',
+        ),
+        PlanExercise(
+          name: 'Cable Triceps Pushdown',
+          setsReps: '2 × 10–15',
+          muscleGroup: 'Triceps',
+          imagePath: 'assets/workouts/cable_triceps_pushdown.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 25.0,
+          met: 4.5,
+          tip: 'Strict form, full squeeze at bottom',
+        ),
+        PlanExercise(
+          name: 'Hammer Curl',
+          setsReps: '2 × 10–15',
+          muscleGroup: 'Brachialis & Forearms',
+          imagePath: 'assets/workouts/dumbbell_curl.png',
+          defaultSets: 2,
+          defaultReps: 12,
+          defaultWeightKg: 14.0,
+          met: 4.0,
+          tip: 'Neutral grip throughout the curl motion',
+        ),
+      ],
     ),
-    ExerciseItem(
-      name: 'Dumbbell curls',
-      met: 4.0,
-      type: ExerciseType.strength,
-      muscleGroup: 'Arms & Biceps',
-      defaultWeightKg: 14.0,
-      defaultSets: 3,
-      defaultReps: 12,
-    ),
-    ExerciseItem(
-      name: 'Leg press',
-      met: 5.5,
-      type: ExerciseType.strength,
-      muscleGroup: 'Quadriceps',
-      defaultWeightKg: 120.0,
-      defaultSets: 4,
-      defaultReps: 12,
-    ),
-    ExerciseItem(
-      name: 'Run',
-      met: 9.8,
-      type: ExerciseType.cardio,
-      muscleGroup: 'Cardio / Stamina',
-    ),
-    ExerciseItem(
-      name: 'Cycle',
-      met: 7.5,
-      type: ExerciseType.cardio,
-      muscleGroup: 'Cardio / Legs',
+
+    // 7. SUNDAY: REST
+    WorkoutDayPlan(
+      weekday: 7,
+      dayName: 'Sunday',
+      shortDay: 'Sun',
+      title: 'Rest',
+      subtitle: 'Complete Recovery & Nutrition',
+      targetMuscles: 'Total Rest • Mental Refresh',
+      isRestDay: true,
+      restAdvice:
+          '• Full recovery day.\n• Stay hydrated, hit protein target, and rest for Monday Upper Body.',
     ),
   ];
-
-  late ExerciseItem _selectedExercise;
-
-  // Strength parameters
-  int _sets = 4;
-  int _reps = 10;
-  double _weightKg = 60.0;
-
-  // Cardio parameters
-  int _cardioMinutes = 20;
-  bool _isHighIntensity = false;
 
   @override
   void initState() {
     super.initState();
-    _selectExercise(_exercises.first);
+    // Auto-detect today's weekday: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+    _selectedWeekday = DateTime.now().weekday;
+    final todayPlan = _getPlanForWeekday(_selectedWeekday);
+    if (!todayPlan.isRestDay && todayPlan.exercises.isNotEmpty) {
+      _selectExercise(todayPlan.exercises.first);
+    } else {
+      // Default to Monday Upper Body first exercise if today is rest
+      _selectExercise(_weeklyPlans[0].exercises[2]); // Bench press
+    }
   }
 
-  void _selectExercise(ExerciseItem ex) {
+  WorkoutDayPlan _getPlanForWeekday(int weekday) {
+    return _weeklyPlans.firstWhere(
+      (p) => p.weekday == weekday,
+      orElse: () => _weeklyPlans.first,
+    );
+  }
+
+  void _selectExercise(PlanExercise ex) {
     setState(() {
       _selectedExercise = ex;
-      if (ex.isStrength) {
-        _sets = ex.defaultSets;
-        _reps = ex.defaultReps;
-        _weightKg = ex.defaultWeightKg;
-      } else {
-        _cardioMinutes = 20;
-        _isHighIntensity = false;
-      }
+      _sets = ex.defaultSets;
+      _reps = ex.defaultReps;
+      _weightKg = ex.defaultWeightKg;
     });
   }
 
   int _calculateBurn(double userWeightKg) {
-    if (_selectedExercise.isStrength) {
-      return MallowFormulas.calculateStrengthBurn(
-        met: _selectedExercise.met,
-        userWeightKg: userWeightKg,
-        sets: _sets,
-        reps: _reps,
-        weightLiftedKg: _weightKg,
-      );
-    } else {
-      final effectiveMet = _isHighIntensity
-          ? (_selectedExercise.met * 1.25)
-          : _selectedExercise.met;
-      return MallowFormulas.calculateWorkoutBurn(
-        met: effectiveMet,
-        weightKg: userWeightKg,
-        minutes: _cardioMinutes,
-      );
-    }
-  }
-
-  int get _calculatedMinutes {
-    if (_selectedExercise.isStrength) {
-      return (_sets * 2.5).round().clamp(5, 120);
-    }
-    return _cardioMinutes;
+    return MallowFormulas.calculateStrengthBurn(
+      met: _selectedExercise.met,
+      userWeightKg: userWeightKg,
+      sets: _sets,
+      reps: _reps,
+      weightLiftedKg: _weightKg,
+    );
   }
 
   double get _totalVolumeKg {
@@ -194,8 +597,10 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     final totals = ref.watch(todayTotalsProvider);
     final profile = ref.watch(profileProvider);
     final workouts = ref.watch(workoutLogsProvider);
-
     final currentBurn = _calculateBurn(profile.weightKg);
+
+    final todayWeekday = DateTime.now().weekday;
+    final activePlan = _getPlanForWeekday(_selectedWeekday);
 
     return Scaffold(
       backgroundColor: MallowColors.creamBg,
@@ -205,13 +610,29 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Bar: Mallow avatar on left, "See Today" pill on right
+              // Top Bar: Back/Avatar & See Today
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  MallowAvatar(
-                    size: 38,
-                    onTap: () => context.go('/pet'),
+                  Row(
+                    children: [
+                      MallowCircleButton(
+                        size: 38,
+                        onTap: () {
+                          if (Navigator.canPop(context)) {
+                            context.pop();
+                          } else {
+                            context.go('/today');
+                          }
+                        },
+                        child: const Icon(Icons.arrow_back, size: 20, color: MallowColors.charcoal),
+                      ),
+                      const SizedBox(width: 10),
+                      MallowAvatar(
+                        size: 38,
+                        onTap: () => context.go('/pet'),
+                      ),
+                    ],
                   ),
                   MallowPillButton(
                     label: 'See Today',
@@ -221,521 +642,89 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
-              // 1. Burned Today Pink Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: MallowColors.hotPink,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Burned today',
-                      style: MallowTypography.bodyMedium(
-                        color: MallowColors.charcoal,
-                        weight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
+              // Title Header & Training Guide Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${totals.burnedKcal}',
-                          style: MallowTypography.bigNumber(fontSize: 48, color: MallowColors.charcoal),
+                          '5-Day Workout Plan',
+                          style: MallowTypography.headlineMedium(),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(height: 2),
                         Text(
-                          'kcal',
-                          style: MallowTypography.headlineMedium(color: MallowColors.charcoal),
+                          'Lean Muscle • Broader Shoulders • V-Taper',
+                          style: MallowTypography.bodySmall(
+                            color: MallowColors.textSubtle,
+                            weight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    // Formula pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  ),
+                  GestureDetector(
+                    onTap: _showTrainingGuideModal,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFD4E5),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: MallowColors.charcoal, width: 1.2),
                       ),
-                      child: Text(
-                        _selectedExercise.isStrength
-                            ? 'Sets × Reps × Weight + MET'
-                            : 'MET × kg × hours',
-                        style: MallowTypography.bodySmall(
-                          color: MallowColors.charcoal,
-                          weight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 2. Log a workout section
-              Text(
-                'Log a workout',
-                style: MallowTypography.headlineSmall(),
-              ),
-              const SizedBox(height: 14),
-
-              // Horizontal Exercise Chips
-              SizedBox(
-                height: 42,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _exercises.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final ex = _exercises[index];
-                    final isSelected = _selectedExercise.name == ex.name;
-                    return GestureDetector(
-                      onTap: () => _selectExercise(ex),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? MallowColors.hotPink : Colors.transparent,
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: MallowColors.charcoal,
-                            width: 1.8,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            ex.name,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_outline, size: 14, color: MallowColors.charcoal),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Guide',
                             style: MallowTypography.buttonText(
                               color: MallowColors.charcoal,
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Active Workout Config Card (Sets, Reps, Weight instead of slider!)
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: MallowColors.cardCream,
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFFE5DDD0), width: 1.2),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title and Muscle Group label
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _selectedExercise.name,
-                              style: MallowTypography.headlineSmall(
-                                fontSize: 20,
-                                color: MallowColors.charcoal,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _selectedExercise.muscleGroup,
-                              style: MallowTypography.bodySmall(
-                                color: MallowColors.textSubtle,
-                                weight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: MallowColors.borderSubtle),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _selectedExercise.isStrength
-                                    ? Icons.fitness_center
-                                    : Icons.directions_run,
-                                size: 14,
-                                color: MallowColors.charcoal,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _selectedExercise.isStrength ? 'Strength' : 'Cardio',
-                                style: MallowTypography.bodySmall(
-                                  color: MallowColors.charcoal,
-                                  weight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Controls based on type
-                    if (_selectedExercise.isStrength) ...[
-                      // 1. Sets Stepper & Quick Pills
-                      _buildInputRow(
-                        label: 'Sets',
-                        valueText: '$_sets sets',
-                        onDecrement: () => setState(() => _sets = (_sets - 1).clamp(1, 12)),
-                        onIncrement: () => setState(() => _sets = (_sets + 1).clamp(1, 12)),
-                        chips: [3, 4, 5, 6],
-                        currentValue: _sets,
-                        onChipSelected: (val) => setState(() => _sets = val),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // 2. Reps Stepper & Quick Pills
-                      _buildInputRow(
-                        label: 'Reps per Set',
-                        valueText: '$_reps reps',
-                        onDecrement: () => setState(() => _reps = (_reps - 1).clamp(1, 30)),
-                        onIncrement: () => setState(() => _reps = (_reps + 1).clamp(1, 30)),
-                        chips: [6, 8, 10, 12],
-                        currentValue: _reps,
-                        onChipSelected: (val) => setState(() => _reps = val),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // 3. Weight Stepper & Quick Pills
-                      _buildWeightInputRow(),
-                      const SizedBox(height: 22),
-
-                      // Volume & Workout Summary Box (Overflow-safe with Expanded & flexible wrapping)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: MallowColors.borderSubtle),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _weightKg > 0
-                                        ? '$_sets sets × $_reps reps @ ${_weightKg.toStringAsFixed(_weightKg % 1 == 0 ? 0 : 1)} kg'
-                                        : '$_sets sets × $_reps reps (Bodyweight)',
-                                    style: MallowTypography.bodyMedium(
-                                      color: MallowColors.charcoal,
-                                      weight: FontWeight.w700,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _weightKg > 0
-                                        ? '${_totalVolumeKg.toStringAsFixed(0)} kg volume • ~$_calculatedMinutes min session'
-                                        : 'Bodyweight • ~$_calculatedMinutes min session',
-                                    style: MallowTypography.bodySmall(
-                                      color: MallowColors.textSubtle,
-                                      weight: FontWeight.w500,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '+$currentBurn',
-                                  style: MallowTypography.headlineMedium(
-                                    fontSize: 22,
-                                    color: MallowColors.charcoal,
-                                  ),
-                                ),
-                                Text(
-                                  'kcal',
-                                  style: MallowTypography.bodySmall(
-                                    color: MallowColors.textSubtle,
-                                    weight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      // Cardio Duration Stepper & Quick Pills
-                      _buildInputRow(
-                        label: 'Duration',
-                        valueText: '$_cardioMinutes min',
-                        onDecrement: () => setState(() => _cardioMinutes = (_cardioMinutes - 5).clamp(5, 120)),
-                        onIncrement: () => setState(() => _cardioMinutes = (_cardioMinutes + 5).clamp(5, 120)),
-                        chips: [15, 20, 30, 45],
-                        currentValue: _cardioMinutes,
-                        onChipSelected: (val) => setState(() => _cardioMinutes = val),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Intensity Switch
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'High Intensity (Sprint / HIIT)',
-                                  style: MallowTypography.bodyMedium(weight: FontWeight.w600),
-                                ),
-                                Text(
-                                  _isHighIntensity ? '1.25× MET multiplier' : 'Standard steady pace',
-                                  style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _isHighIntensity,
-                            activeThumbColor: MallowColors.hotPink,
-                            onChanged: (val) => setState(() => _isHighIntensity = val),
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 20),
-
-                      // Cardio Summary Box (Overflow-safe)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: MallowColors.borderSubtle),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '$_cardioMinutes min ${_selectedExercise.name}',
-                                    style: MallowTypography.bodyMedium(
-                                      color: MallowColors.charcoal,
-                                      weight: FontWeight.w700,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${profile.weightKg.toStringAsFixed(1)} kg body weight',
-                                    style: MallowTypography.bodySmall(
-                                      color: MallowColors.textSubtle,
-                                      weight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '+$currentBurn',
-                                  style: MallowTypography.headlineMedium(
-                                    fontSize: 22,
-                                    color: MallowColors.charcoal,
-                                  ),
-                                ),
-                                Text(
-                                  'kcal',
-                                  style: MallowTypography.bodySmall(
-                                    color: MallowColors.textSubtle,
-                                    weight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 20),
-
-                    // Black "Log workout" button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        key: const Key('log_workout_button'),
-                        onPressed: () async {
-                          final exerciseDetail = _selectedExercise.isStrength
-                              ? _selectedExercise.name
-                              : '${_selectedExercise.name} ($_cardioMinutes min)';
-
-                          await ref.read(workoutLogsProvider.notifier).logWorkout(
-                            exerciseName: exerciseDetail,
-                            met: _selectedExercise.met,
-                            minutes: _calculatedMinutes,
-                            weightKg: profile.weightKg,
-                            caloriesBurned: currentBurn,
-                            category: _selectedExercise.isStrength ? 'Strength' : 'Cardio',
-                          );
-
-                          if (context.mounted) {
-                            MallowToast.show(
-                              context,
-                              'Logged ${_selectedExercise.name} (+$currentBurn kcal)',
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: MallowColors.charcoal,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26),
-                          ),
-                        ),
-                        child: Text(
-                          'Log ${_selectedExercise.name} (+$currentBurn kcal)',
-                          style: MallowTypography.buttonText(color: Colors.white),
-                        ),
-                      ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 26),
-
-              // 3. Today List section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Today',
-                    style: MallowTypography.headlineSmall(),
                   ),
-                  if (workouts.isNotEmpty)
-                    Text(
-                      '${workouts.length} logged',
-                      style: MallowTypography.bodySmall(
-                        color: MallowColors.textSubtle,
-                        weight: FontWeight.w600,
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 14),
 
-              if (workouts.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: MallowColors.borderSubtle),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'No workouts logged today yet.',
-                      style: MallowTypography.bodyMedium(color: MallowColors.textSubtle),
-                    ),
-                  ),
-                )
+              // 1. Weekly Interactive Schedule Bar (Mon - Sun)
+              _buildWeeklyScheduleBar(todayWeekday),
+              const SizedBox(height: 14),
+
+              // 2. Active Day Banner (Highlights Today's Workout)
+              _buildActiveDayBanner(activePlan, todayWeekday),
+              const SizedBox(height: 16),
+
+              // 3. Exercise Cards or Rest Day Card
+              if (activePlan.isRestDay)
+                _buildRestDayCard(activePlan)
               else
-                Column(
-                  children: workouts.map((w) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Color(0xFFE8DFCE), width: 1.0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  w.exerciseName,
-                                  style: MallowTypography.headlineSmall(
-                                    fontSize: 17,
-                                    color: MallowColors.charcoal,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${w.minutes} min gym session',
-                                  style: MallowTypography.bodySmall(
-                                    color: MallowColors.textSubtle,
-                                    weight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                '+${w.caloriesBurned} kcal',
-                                style: MallowTypography.headlineSmall(
-                                  fontSize: 18,
-                                  color: MallowColors.charcoal,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 18, color: MallowColors.textSubtle),
-                                onPressed: () {
-                                  ref.read(workoutLogsProvider.notifier).deleteWorkoutLog(w.id);
-                                  MallowToast.show(context, 'Removed ${w.exerciseName}');
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              const SizedBox(height: 30),
+                _buildExerciseCardsSection(activePlan),
+
+              const SizedBox(height: 24),
+
+              // 4. Quick Logger Stepper Card (Sets, Reps, Weight & Log Workout Button)
+              _buildActiveLoggerCard(currentBurn, profile),
+
+              const SizedBox(height: 24),
+
+              // 5. Burned Today Summary Card
+              _buildBurnedTodayCard(totals),
+
+              const SizedBox(height: 24),
+
+              // 6. Recent Workouts History
+              if (workouts.isNotEmpty) _buildRecentWorkoutsSection(workouts),
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -743,15 +732,197 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
     );
   }
 
-  Widget _buildInputRow({
-    required String label,
-    required String valueText,
-    required VoidCallback onDecrement,
-    required VoidCallback onIncrement,
-    required List<int> chips,
-    required int currentValue,
-    required ValueChanged<int> onChipSelected,
-  }) {
+  // ==========================================
+  // 1. Weekly Interactive Schedule Bar
+  // ==========================================
+  Widget _buildWeeklyScheduleBar(int todayWeekday) {
+    return SizedBox(
+      height: 58,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _weeklyPlans.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final plan = _weeklyPlans[index];
+          final isSelected = _selectedWeekday == plan.weekday;
+          final isToday = todayWeekday == plan.weekday;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedWeekday = plan.weekday;
+                if (!plan.isRestDay && plan.exercises.isNotEmpty) {
+                  _selectExercise(plan.exercises.first);
+                }
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 50,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? MallowColors.charcoal
+                    : isToday
+                        ? MallowColors.hotPinkLight
+                        : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected
+                      ? MallowColors.charcoal
+                      : isToday
+                          ? MallowColors.hotPink
+                          : MallowColors.borderSubtle,
+                  width: isToday || isSelected ? 2.0 : 1.2,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    plan.shortDay,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected
+                          ? Colors.white
+                          : isToday
+                              ? MallowColors.charcoal
+                              : MallowColors.textSubtle,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  if (isToday)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isSelected ? MallowColors.hotPink : MallowColors.charcoal,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'TODAY',
+                        style: TextStyle(
+                          fontSize: 7,
+                          fontWeight: FontWeight.w900,
+                          color: isSelected ? MallowColors.charcoal : Colors.white,
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      plan.isRestDay ? '💤' : '💪',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ==========================================
+  // 2. Active Day Banner
+  // ==========================================
+  Widget _buildActiveDayBanner(WorkoutDayPlan plan, int todayWeekday) {
+    final isToday = todayWeekday == plan.weekday;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: plan.isRestDay ? const Color(0xFFE8F0FE) : MallowColors.cardCream,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isToday ? MallowColors.hotPink : MallowColors.borderSubtle,
+          width: isToday ? 2.0 : 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '${plan.dayName.toUpperCase()} — ${plan.title.toUpperCase()}',
+                    style: MallowTypography.headlineSmall(
+                      fontSize: 15,
+                      color: MallowColors.charcoal,
+                    ),
+                  ),
+                ],
+              ),
+              if (isToday)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: MallowColors.hotPink,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'TODAY’S PLAN',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            plan.subtitle,
+            style: MallowTypography.bodySmall(
+              color: MallowColors.textSubtle,
+              weight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: MallowColors.borderSubtle, width: 1),
+                ),
+                child: Text(
+                  plan.isRestDay
+                      ? '🧘 Active Recovery'
+                      : '⚡ ${plan.exercises.length} Exercises • ~50 mins',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: MallowColors.charcoal,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '1–3 RIR • Controlled Form',
+                  style: MallowTypography.bodySmall(
+                    color: MallowColors.textSubtle,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 3. Exercise Cards Section
+  // ==========================================
+  Widget _buildExerciseCardsSection(WorkoutDayPlan plan) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -759,150 +930,757 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              label,
-              style: MallowTypography.bodyMedium(weight: FontWeight.w600),
+              'Exercises for ${plan.dayName}',
+              style: MallowTypography.headlineSmall(fontSize: 17),
             ),
-            Row(
-              children: [
-                _buildRoundStepperBtn(Icons.remove, onDecrement),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Text(
-                    valueText,
-                    style: MallowTypography.headlineSmall(fontSize: 18),
-                  ),
-                ),
-                _buildRoundStepperBtn(Icons.add, onIncrement),
-              ],
+            Text(
+              'Tap card to track',
+              style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: chips.map((c) {
-            final isSelected = currentValue == c;
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: plan.exercises.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final ex = plan.exercises[index];
+            final isSelected = _selectedExercise.name == ex.name;
+
             return GestureDetector(
-              onTap: () => onChipSelected(c),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              onTap: () => _selectExercise(ex),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isSelected ? MallowColors.charcoal : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+                  color: isSelected ? const Color(0xFFFFF7FA) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? MallowColors.charcoal : MallowColors.borderSubtle,
+                    color: isSelected ? MallowColors.hotPink : MallowColors.borderSubtle,
+                    width: isSelected ? 2.0 : 1.2,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  '$c',
-                  style: MallowTypography.bodySmall(
-                    color: isSelected ? Colors.white : MallowColors.charcoal,
-                    weight: FontWeight.w700,
-                  ),
+                child: Row(
+                  children: [
+                    // Cropped Workout Cartoon Image Card
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 84,
+                        height: 84,
+                        color: MallowColors.cardCream,
+                        child: Image.asset(
+                          ex.imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(Icons.fitness_center, size: 32, color: MallowColors.charcoal),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Exercise Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                '${index + 1}. ',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: MallowColors.hotPink,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  ex.name,
+                                  style: MallowTypography.headlineSmall(
+                                    fontSize: 15,
+                                    color: MallowColors.charcoal,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Sets × Reps Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: MallowColors.hotPinkLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              ex.setsReps,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: MallowColors.charcoal,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Muscle Group & Form Tip
+                          Text(
+                            ex.muscleGroup,
+                            style: MallowTypography.bodySmall(
+                              color: MallowColors.textSubtle,
+                              weight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            ex.tip,
+                            style: MallowTypography.bodySmall(
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Track / Selected indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? MallowColors.charcoal : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        isSelected ? 'Active' : 'Track',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? Colors.white : MallowColors.charcoal,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
-          }).toList(),
+          },
         ),
       ],
     );
-
   }
 
-  Widget _buildWeightInputRow() {
-    final isPullUps = _selectedExercise.name == 'Pull-ups';
-    final weightLabel = isPullUps && _weightKg == 0 ? 'Bodyweight' : '${_weightKg.toStringAsFixed(_weightKg % 1 == 0 ? 0 : 1)} kg';
+  // ==========================================
+  // Rest Day Card
+  // ==========================================
+  Widget _buildRestDayCard(WorkoutDayPlan plan) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: MallowColors.borderSubtle, width: 1.2),
+      ),
+      child: Column(
+        children: [
+          const Text('🛌', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 10),
+          Text(
+            'Rest & Muscle Growth Day',
+            style: MallowTypography.headlineSmall(fontSize: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Muscle fibers rebuild and get stronger while you rest.\nTraining every day without recovery limits gains.',
+            textAlign: TextAlign.center,
+            style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F4EF),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              plan.restAdvice ?? 'Focus on sleep, hydration and light mobility work.',
+              style: MallowTypography.bodySmall(
+                color: MallowColors.charcoal,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  // ==========================================
+  // 4. Quick Logger Stepper Card
+  // ==========================================
+  Widget _buildActiveLoggerCard(int currentBurn, UserProfile profile) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: MallowColors.cardCream,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5DDD0), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Track Exercise',
+                    style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
+                  ),
+                  Text(
+                    _selectedExercise.name,
+                    style: MallowTypography.headlineSmall(
+                      fontSize: 18,
+                      color: MallowColors.charcoal,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: MallowColors.hotPinkLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '+$currentBurn kcal',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: MallowColors.charcoal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Quick Core Exercises Chips (includes Bench press, Squat, Deadlift for tests & fast logging)
+          SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildQuickChip('Bench press', 3, 10, 60.0, 'assets/workouts/bench_press.png'),
+                const SizedBox(width: 6),
+                _buildQuickChip('Squat', 3, 8, 80.0, 'assets/workouts/leg_press.png'),
+                const SizedBox(width: 6),
+                _buildQuickChip('Deadlift', 3, 8, 85.0, 'assets/workouts/deadlift.png'),
+                const SizedBox(width: 6),
+                _buildQuickChip('Incline Dumbbell Press', 3, 10, 24.0, 'assets/workouts/incline_dumbbell_press.png'),
+                const SizedBox(width: 6),
+                _buildQuickChip('Dumbbell Lateral Raises', 3, 15, 10.0, 'assets/workouts/dumbbell_lateral_raise.png'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 1. Sets Stepper
+          _buildNumericStepper(
+            label: 'Sets',
+            value: _sets,
+            unit: 'sets',
+            onChanged: (val) => setState(() => _sets = val.clamp(1, 20)),
+          ),
+          const SizedBox(height: 12),
+
+          // 2. Reps per Set Stepper
+          _buildNumericStepper(
+            label: 'Reps per Set',
+            value: _reps,
+            unit: 'reps',
+            onChanged: (val) => setState(() => _reps = val.clamp(1, 100)),
+          ),
+          const SizedBox(height: 12),
+
+          // 3. Weight (kg) Stepper
+          _buildDoubleStepper(
+            label: 'Weight (kg)',
+            value: _weightKg,
+            onChanged: (val) => setState(() => _weightKg = (val < 0 ? 0.0 : val)),
+          ),
+          const SizedBox(height: 14),
+
+          // Volume summary
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: MallowColors.borderSubtle),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total workout volume',
+                  style: MallowTypography.bodySmall(
+                    color: MallowColors.charcoal,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${_totalVolumeKg.toStringAsFixed(0)} kg',
+                  style: MallowTypography.bodyMedium(
+                    color: MallowColors.charcoal,
+                    weight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Log Workout Button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: GestureDetector(
+              key: const Key('log_workout_button'),
+              onTap: () async {
+                final durationMin = (_sets * 2.5).round().clamp(5, 120);
+                await ref.read(workoutLogsProvider.notifier).logWorkout(
+                  exerciseName: _selectedExercise.name,
+                  met: _selectedExercise.met,
+                  minutes: durationMin,
+                  weightKg: profile.weightKg,
+                  caloriesBurned: currentBurn,
+                  category: 'Gym',
+                );
+
+                if (mounted) {
+                  MallowToast.show(
+                    context,
+                    'Logged ${_selectedExercise.name}! +$currentBurn kcal burned',
+                  );
+                }
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: MallowColors.charcoal,
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: Center(
+                  child: Text(
+                    'Log workout',
+                    style: MallowTypography.buttonText(color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickChip(String name, int sets, int reps, double weight, String img) {
+    final isSelected = _selectedExercise.name == name;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedExercise = PlanExercise(
+            name: name,
+            setsReps: '$sets × $reps',
+            muscleGroup: 'Compound',
+            imagePath: img,
+            defaultSets: sets,
+            defaultReps: reps,
+            defaultWeightKg: weight,
+            tip: 'Focus on progressive overload',
+          );
+          _sets = sets;
+          _reps = reps;
+          _weightKg = weight;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? MallowColors.charcoal : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? MallowColors.charcoal : MallowColors.borderSubtle,
+          ),
+        ),
+        child: Text(
+          name,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: isSelected ? Colors.white : MallowColors.charcoal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 5. Burned Today Card
+  // ==========================================
+  Widget _buildBurnedTodayCard(TodayTotals totals) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: MallowColors.hotPink,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Burned today',
+                style: MallowTypography.bodyMedium(
+                  color: MallowColors.charcoal,
+                  weight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '${totals.burnedKcal}',
+                    style: MallowTypography.bigNumber(fontSize: 40, color: MallowColors.charcoal),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'kcal',
+                    style: MallowTypography.headlineMedium(color: MallowColors.charcoal),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD4E5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'Sets × Reps × Weight',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: MallowColors.charcoal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 6. Recent Workouts Section
+  // ==========================================
+  Widget _buildRecentWorkoutsSection(List<WorkoutLog> workouts) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Weight (kg)',
-                  style: MallowTypography.bodyMedium(weight: FontWeight.w600),
-                ),
-                Text(
-                  'Weight per set',
-                  style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
-                ),
-              ],
+            Text(
+              'Logged workouts',
+              style: MallowTypography.headlineSmall(fontSize: 17),
             ),
-            Row(
-              children: [
-                _buildRoundStepperBtn(Icons.remove, () {
-                  setState(() => _weightKg = (_weightKg - 2.5).clamp(0.0, 350.0));
-                }),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    weightLabel,
-                    style: MallowTypography.headlineSmall(fontSize: 18),
-                  ),
-                ),
-                _buildRoundStepperBtn(Icons.add, () {
-                  setState(() => _weightKg = (_weightKg + 2.5).clamp(0.0, 350.0));
-                }),
-              ],
+            Text(
+              '${workouts.length} session${workouts.length > 1 ? 's' : ''}',
+              style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: (isPullUps ? [0.0, 5.0, 10.0, 15.0, 20.0] : [20.0, 40.0, 60.0, 80.0, 100.0, 120.0]).map((w) {
-              final isSelected = (_weightKg - w).abs() < 0.1;
-              final chipText = w == 0.0 ? 'Bodyweight' : '${w.toInt()} kg';
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: GestureDetector(
-                  onTap: () => setState(() => _weightKg = w),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: workouts.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final w = workouts[index];
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: MallowColors.borderSubtle, width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: isSelected ? MallowColors.charcoal : Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected ? MallowColors.charcoal : MallowColors.borderSubtle,
-                      ),
+                      color: MallowColors.hotPinkLight,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      chipText,
-                      style: MallowTypography.bodySmall(
-                        color: isSelected ? Colors.white : MallowColors.charcoal,
-                        weight: FontWeight.w700,
-                      ),
+                    child: const Center(child: Text('💪', style: TextStyle(fontSize: 16))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          w.exerciseName,
+                          style: MallowTypography.bodyMedium(weight: FontWeight.bold),
+                        ),
+                        Text(
+                          '${w.minutes} minutes • ${w.category}',
+                          style: MallowTypography.bodySmall(color: MallowColors.textSubtle),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
+                  Text(
+                    '+${w.caloriesBurned} kcal',
+                    style: MallowTypography.bodyMedium(
+                      weight: FontWeight.w700,
+                      color: MallowColors.charcoal,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      await ref.read(workoutLogsProvider.notifier).deleteWorkoutLog(w.id);
+                      if (context.mounted) {
+                        MallowToast.show(context, 'Deleted workout');
+                      }
+                    },
+                    child: const Icon(Icons.close, size: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildRoundStepperBtn(IconData icon, VoidCallback onTap) {
+  // ==========================================
+  // Stepper Widgets
+  // ==========================================
+  Widget _buildNumericStepper({
+    required String label,
+    required int value,
+    required String unit,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: MallowTypography.bodyMedium(weight: FontWeight.w600)),
+            Text('$value $unit', style: MallowTypography.bodySmall(color: MallowColors.textSubtle)),
+          ],
+        ),
+        Row(
+          children: [
+            _buildCircleStepperBtn(Icons.remove, () => onChanged(value - 1)),
+            Container(
+              width: 44,
+              alignment: Alignment.center,
+              child: Text(
+                '$value',
+                style: MallowTypography.bodyMedium(weight: FontWeight.bold),
+              ),
+            ),
+            _buildCircleStepperBtn(Icons.add, () => onChanged(value + 1)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDoubleStepper({
+    required String label,
+    required double value,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: MallowTypography.bodyMedium(weight: FontWeight.w600)),
+            Text('${value.toStringAsFixed(1)} kg', style: MallowTypography.bodySmall(color: MallowColors.textSubtle)),
+          ],
+        ),
+        Row(
+          children: [
+            _buildCircleStepperBtn(Icons.remove, () => onChanged(value - 2.5)),
+            Container(
+              width: 52,
+              alignment: Alignment.center,
+              child: Text(
+                value.toStringAsFixed(1),
+                style: MallowTypography.bodyMedium(weight: FontWeight.bold),
+              ),
+            ),
+            _buildCircleStepperBtn(Icons.add, () => onChanged(value + 2.5)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCircleStepperBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: MallowColors.charcoal, width: 1.5),
+          shape: BoxShape.circle,
+          border: Border.all(color: MallowColors.borderSubtle, width: 1.5),
         ),
-        child: Center(
-          child: Icon(icon, size: 18, color: MallowColors.charcoal),
-        ),
+        child: Icon(icon, size: 16, color: MallowColors.charcoal),
+      ),
+    );
+  }
+
+  // ==========================================
+  // Training Guide Modal (Clean, Non-Cluttered)
+  // ==========================================
+  void _showTrainingGuideModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: MallowColors.creamBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Training Rules', style: MallowTypography.headlineMedium(fontSize: 20)),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Icons.close, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              _buildGuideRuleItem(
+                icon: '🏃',
+                title: 'Warm-up',
+                desc: '5–8 mins easy cardio + 2–4 warm-up sets before heavy compound lifts.',
+              ),
+              _buildGuideRuleItem(
+                icon: '⏱️',
+                title: 'Rest Periods',
+                desc: 'Compound lifts: 2–3 minutes • Isolation exercises: 60–120 seconds.',
+              ),
+              _buildGuideRuleItem(
+                icon: '⚡',
+                title: 'Intensity (1–3 RIR)',
+                desc: 'Leave 1–3 repetitions in reserve on working sets. Don’t go to total failure every set.',
+              ),
+              _buildGuideRuleItem(
+                icon: '📈',
+                title: 'Progressive Overload',
+                desc: 'Hit the top of the rep range first with clean form, then increase weight slightly.',
+              ),
+              _buildGuideRuleItem(
+                icon: '💤',
+                title: 'Sleep & Recovery',
+                desc: 'Sleep 7–9 hours nightly. Keep Thursday and Sunday strictly as rest days.',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGuideRuleItem({required String icon, required String title, required String desc}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: MallowColors.borderSubtle),
+            ),
+            child: Center(child: Text(icon, style: const TextStyle(fontSize: 16))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: MallowTypography.bodyMedium(weight: FontWeight.bold)),
+                Text(desc, style: MallowTypography.bodySmall(color: MallowColors.textSubtle)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
